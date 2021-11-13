@@ -72,7 +72,7 @@ Que font les fonctions omp_get_num_threads() et omp_get_thread_num() ?
 > firstprivate est une utilisation particuliere de private et permet de conserver la valeur d'initialisation avant d'entrer dans la région parallele. (Dans notre cas, il n'est pas utile de l'utiliser ici)  
 > shared permet de définir une variable qui est partagée entre les threads.  
 
-```c
+```c++
 int my_rank, nb_threads;
     
     #pragma omp parallel private(my_rank) shared(nb_threads) default(none)
@@ -104,9 +104,10 @@ Penser à protéger la somme finale (avec un atomic ou une section critique).
 > Répartition du travail en donnant au premier thread les valeurs du tableau allant de 0 à 15, au second thread de 16 à 31, etc.  
 > La somme partielle est stockée dans tmp_sum.  
 > Atomic est utilisé ici pour autoriser la lecture et la modification de la variable à un thread à la fois.  
-> Possibilité d'utiliser section critique mais plus couteux pour une seule instruction.  
+> Possibilité d'utiliser section critique mais plus couteux pour une seule instruction.
 
-```c
+
+```c++
     #pragma omp parallel firstprivate(tmp_sum) shared(array, sum, size, nb_threads) default(none)
     {
         int j;
@@ -126,9 +127,53 @@ Penser à protéger la somme finale (avec un atomic ou une section critique).
     }
 ```
 
-**Q6**
+**Q6**: Il est possible de répartir automatiquement les itérations d’une boucle entre les différents threads avec le pragma #pragma omp for.   
+Utiliser ce pragma pour remplacer votre découpage manuel.  
+  
+```c++
+#pragma omp parallel firstprivate(tmp_sum) shared(array, sum, size, nb_threads) default(none)
+    {
+        int j;
+        #pragma omp for schedule(static, 1)
+        for(j=0; j<size; j++)
+            tmp_sum += array[j];
 
+        #pragma omp atomic
+        sum += tmp_sum;
 
+        for(j=0; j<nb_threads; j++) {
+            if (omp_get_thread_num() == j)
+            {
+                #pragma omp barrier
+                printf("tmp_sum = %d \n", tmp_sum);
+            }
+        }
+    }
+```
+
+**Q7**: Au lieu de protéger la somme finale avec une section critique, il est possible de spécifier à une région parallèle (ou une boucle for) qu’une réduction à lieu dans celle-ci.   
+Utiliser cette fonctionnalité.  
+
+```c++
+#pragma omp parallel firstprivate(tmp_sum) shared(array, sum, size, nb_threads) default(none)
+    {
+        int j;
+        #pragma omp for schedule(static, 1) reduction(+:sum)
+        for(j=0; j<size; j++)
+        {
+            tmp_sum += array[j];
+            sum += array[j];
+        }
+
+        for(j=0; j<nb_threads; j++) {
+            if (omp_get_thread_num() == j)
+            {
+                #pragma omp barrier
+                printf("tmp_sum = %d \n", tmp_sum);
+            }
+        }
+    }
+```
 
 
 <br/>

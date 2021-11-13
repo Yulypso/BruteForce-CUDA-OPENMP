@@ -16,21 +16,20 @@ int main(int argc, char * argv[])
     for(i=0; i<size; i++)
         array[i] = i+1;
 
-
     int verif_sum = 0;
     for(i=0; i<size; i++)
         verif_sum += array[i];
-
 
     int tmp_sum = 0, sum = 0;
     #pragma omp parallel firstprivate(tmp_sum) shared(array, sum, size, nb_threads) default(none)
     {
         int j;
-        for(j=omp_get_thread_num() * size/nb_threads; j<(omp_get_thread_num()+1) * size/nb_threads; j++)
+        #pragma omp for schedule(static, 1) reduction(+:sum)
+        for(j=0; j<size; j++)
+        {
             tmp_sum += array[j];
-
-        #pragma omp atomic
-        sum += tmp_sum;
+            sum += array[j];
+        }
 
         for(j=0; j<nb_threads; j++) {
             if (omp_get_thread_num() == j)
@@ -42,7 +41,7 @@ int main(int argc, char * argv[])
     }
 
     if(sum == verif_sum)
-        printf("OK! sum = verif_sum!\n");
+        printf("OK! sum = verif_sum! = %d\n", sum);
     else
         printf("Error! sum != verif_sum! (sum = %d ; verif_sum = %d)\n", sum, verif_sum);
     free(array);
