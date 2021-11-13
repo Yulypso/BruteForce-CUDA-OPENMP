@@ -20,23 +20,13 @@ int main(int argc, char * argv[])
     for(i=0; i<size; i++)
         verif_sum += array[i];
 
-    int tmp_sum = 0, sum = 0;
-    #pragma omp parallel firstprivate(tmp_sum) shared(array, sum, size, nb_threads) default(none)
+    int tmp_sum = 0, sum = 0, j;
+    #pragma omp parallel for schedule(static, 1) firstprivate(tmp_sum) shared(array, size) reduction(+:sum) default(none)
     {
-        int j;
-        #pragma omp for schedule(static, 1) reduction(+:sum)
         for(j=0; j<size; j++)
         {
             tmp_sum += array[j];
             sum += array[j];
-        }
-
-        for(j=0; j<nb_threads; j++) {
-            if (omp_get_thread_num() == j)
-            {
-                #pragma omp barrier
-                printf("tmp_sum = %d \n", tmp_sum);
-            }
         }
     }
 

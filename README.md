@@ -74,19 +74,19 @@ Que font les fonctions omp_get_num_threads() et omp_get_thread_num() ?
 
 ```c++
 int my_rank, nb_threads;
-    
-    #pragma omp parallel private(my_rank) shared(nb_threads) default(none)
+
+#pragma omp parallel private(my_rank) shared(nb_threads) default(none)
+{
+    my_rank = omp_get_thread_num();
+
+    # pragma omp single
     {
-        my_rank = omp_get_thread_num();
-
-        # pragma omp single // seul thread qui va dire on est cb
-        {
-            nb_threads = omp_get_num_threads();
-        } // Implicit barrier
-
-        #pragma omp barrier
-        printf("I am thread %d (for a total of %d threads)\n", my_rank, nb_threads);
+        nb_threads = omp_get_num_threads();
     }
+
+    #pragma omp barrier
+    printf("I am thread %d (for a total of %d threads)\n", my_rank, nb_threads);
+}
 ```
 
 
@@ -108,73 +108,94 @@ Penser à protéger la somme finale (avec un atomic ou une section critique).
 
 
 ```c++
-    #pragma omp parallel firstprivate(tmp_sum) shared(array, sum, size, nb_threads) default(none)
-    {
-        int j;
-        for(j=omp_get_thread_num() * size/nb_threads; j<(omp_get_thread_num()+1) * size/nb_threads; j++)
-            tmp_sum += array[j];
+int tmp_sum = 0, sum = 0;
 
-        #pragma omp atomic
-        sum += tmp_sum;
+#pragma omp parallel firstprivate(tmp_sum) shared(array, sum, size, nb_threads) default(none)
+{
+    int j;
+    for(j=omp_get_thread_num() * size/nb_threads; j<(omp_get_thread_num()+1) * size/nb_threads; j++)
+        tmp_sum += array[j];
 
-        for(j=0; j<nb_threads; j++) {
-            if (omp_get_thread_num() == j)
-            {
-                #pragma omp barrier
-                printf("tmp_sum = %d \n", tmp_sum);
-            }
+    #pragma omp atomic
+    sum += tmp_sum;
+
+    for(j=0; j<nb_threads; j++) {
+        if (omp_get_thread_num() == j)
+        {
+            #pragma omp barrier
+            printf("tmp_sum = %d \n", tmp_sum);
         }
     }
+}
 ```
 
 **Q6**: Il est possible de répartir automatiquement les itérations d’une boucle entre les différents threads avec le pragma #pragma omp for.   
 Utiliser ce pragma pour remplacer votre découpage manuel.  
   
 ```c++
+int tmp_sum = 0, sum = 0;
+
 #pragma omp parallel firstprivate(tmp_sum) shared(array, sum, size, nb_threads) default(none)
-    {
-        int j;
-        #pragma omp for schedule(static, 1)
-        for(j=0; j<size; j++)
-            tmp_sum += array[j];
+{
+    int j;
+    #pragma omp for schedule(static, 1)
+    for(j=0; j<size; j++)
+        tmp_sum += array[j];
 
-        #pragma omp atomic
-        sum += tmp_sum;
+    #pragma omp atomic
+    sum += tmp_sum;
 
-        for(j=0; j<nb_threads; j++) {
-            if (omp_get_thread_num() == j)
-            {
-                #pragma omp barrier
-                printf("tmp_sum = %d \n", tmp_sum);
-            }
+    for(j=0; j<nb_threads; j++) {
+        if (omp_get_thread_num() == j)
+        {
+            #pragma omp barrier
+            printf("tmp_sum = %d \n", tmp_sum);
         }
     }
+}
 ```
 
 **Q7**: Au lieu de protéger la somme finale avec une section critique, il est possible de spécifier à une région parallèle (ou une boucle for) qu’une réduction à lieu dans celle-ci.   
 Utiliser cette fonctionnalité.  
 
 ```c++
-#pragma omp parallel firstprivate(tmp_sum) shared(array, sum, size, nb_threads) default(none)
-    {
-        int j;
-        #pragma omp for schedule(static, 1) reduction(+:sum)
-        for(j=0; j<size; j++)
-        {
-            tmp_sum += array[j];
-            sum += array[j];
-        }
+int tmp_sum = 0, sum = 0;
 
-        for(j=0; j<nb_threads; j++) {
-            if (omp_get_thread_num() == j)
-            {
-                #pragma omp barrier
-                printf("tmp_sum = %d \n", tmp_sum);
-            }
+#pragma omp parallel firstprivate(tmp_sum) shared(array, sum, size, nb_threads) default(none)
+{
+    int j;
+    #pragma omp for schedule(static, 1) reduction(+:sum)
+    for(j=0; j<size; j++)
+    {
+        tmp_sum += array[j];
+        sum += array[j];
+    }
+
+    for(j=0; j<nb_threads; j++) {
+        if (omp_get_thread_num() == j)
+        {
+            #pragma omp barrier
+            printf("tmp_sum = %d \n", tmp_sum);
         }
     }
+}
 ```
 
+**Q8**: Il est possible de fusionner les pragmas #pragma omp parallel et #pragma omp for en un seul pragma.  
+Supprimer la boucle permettant l’affichage des sommes partielles, et utiliser ce pragma combiné.  
+
+```c++
+int tmp_sum = 0, sum = 0, j;
+
+#pragma omp parallel for schedule(static, 1) firstprivate(tmp_sum) shared(array, size) reduction(+:sum) default(none)
+{
+    for(j=0; j<size; j++)
+    {
+        tmp_sum += array[j];
+        sum += array[j];
+    }
+}
+```
 
 <br/>
 
