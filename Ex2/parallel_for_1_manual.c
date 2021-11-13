@@ -4,53 +4,48 @@
 
 int main(int argc, char * argv[])
 {
-	int nb_threads=-1;
-	#pragma omp parallel shared(nb_threads) default(none)
-	{
-		nb_threads = omp_get_num_threads();
-	}
+    int nb_threads=-1;
+    #pragma omp parallel shared(nb_threads) default(none)
+    {
+        nb_threads = omp_get_num_threads();
+    }
 
-	int size = nb_threads*16, i; // 6 * 16
-	int * array = (int *)malloc(sizeof(int)*size);
+    int size = nb_threads*16, i; // 6 * 16
+    int * array = (int *)malloc(sizeof(int)*size);
 
-	for(i=0; i<size; i++)
+    for(i=0; i<size; i++)
         array[i] = i+1;
 
 
-	int verif_sum = 0;
-	for(i=0; i<size; i++)
-		verif_sum += array[i];
+    int verif_sum = 0;
+    for(i=0; i<size; i++)
+        verif_sum += array[i];
 
 
     int tmp_sum = 0, sum = 0;
-	#pragma omp parallel firstprivate(tmp_sum) shared(array, sum)
-	{
-		int j;
-		for(j=omp_get_thread_num() * size/nb_threads; j<(omp_get_thread_num()+1) * size/nb_threads; j++)
+    #pragma omp parallel firstprivate(tmp_sum) shared(array, sum, size, nb_threads) default(none)
+    {
+        int j;
+        for(j=omp_get_thread_num() * size/nb_threads; j<(omp_get_thread_num()+1) * size/nb_threads; j++)
             tmp_sum += array[j];
 
         #pragma omp atomic
-		sum += tmp_sum;
+        sum += tmp_sum;
 
-		for(j=0; j<nb_threads; j++) {
+        for(j=0; j<nb_threads; j++) {
             if (omp_get_thread_num() == j)
+            {
+                #pragma omp barrier
                 printf("tmp_sum = %d \n", tmp_sum);
-            #pragma omp barrier
+            }
         }
-	}
+    }
 
-	if(sum == verif_sum)
-		printf("OK! sum = verif_sum!\n");
-	else
-		printf("Error! sum != verif_sum! (sum = %d ; verif_sum = %d)\n", sum, verif_sum);
-	free(array);
+    if(sum == verif_sum)
+        printf("OK! sum = verif_sum!\n");
+    else
+        printf("Error! sum != verif_sum! (sum = %d ; verif_sum = %d)\n", sum, verif_sum);
+    free(array);
 
-	return 0;
+    return 0;
 }
-
-/*
- * Variable d'environnement: OMP_NUM_THREADS=8 variable
- *
- * Q4:  la somme vaut toujours 4656
- *
- */
