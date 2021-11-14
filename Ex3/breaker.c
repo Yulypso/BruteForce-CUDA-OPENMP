@@ -4,8 +4,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <crypt.h>
 #include <time.h>
+#ifdef __APPLE__
+    #include <unistd.h>
+#else
+    #include <crypt.h>
+#endif
 
 
 unsigned long cmp = 0;
@@ -27,7 +31,7 @@ int carry( char* tab, int i, int first_char, int last_char ) {
 
 int search_one( char* crypted, char* tab ) {
 	cmp++;
-	if( !strcmp( crypted, crypt( tab, "salt" ) ) ) {
+	if( !strcmp( crypted, crypt( tab, "pepper" ) ) ) {
 		printf( "password found: %s\n", tab );
 		return 1;
 	} else

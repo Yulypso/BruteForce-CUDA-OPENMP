@@ -4,49 +4,37 @@
 
 int main(int argc, char * argv[])
 {
-	int nb_threads=-1;
-	#pragma omp parallel
-	{
-		nb_threads = omp_get_num_threads();	
-	}
+    int nb_threads=-1;
+    #pragma omp parallel shared(nb_threads) default(none)
+    {
+        nb_threads = omp_get_num_threads();
+    }
 
+    int size = nb_threads*16, i; // 6 * 16
+    int * array = (int *)malloc(sizeof(int)*size);
 
-	int size = nb_threads*16;
-	int * array = (int *)malloc(sizeof(int)*size);
-	int i;
-	for(i=0; i<size; i++) array[i] = i+1;
+    for(i=0; i<size; i++)
+        array[i] = i+1;
 
-	int sum=0;
-	int verif_sum=0;
-	int tmp_sum = 0;
+    int verif_sum = 0;
+    for(i=0; i<size; i++)
+        verif_sum += array[i];
 
-	for(i=0; i<size; i++) 
-	{
-		verif_sum += array[i];
-	}
-	
+    int tmp_sum = 0, sum = 0, j;
+    #pragma omp parallel for schedule(static, 1) firstprivate(tmp_sum) shared(array, size) reduction(+:sum) default(none)
+    {
+        for(j=0; j<size; j++)
+        {
+            tmp_sum += array[j];
+            sum += array[j];
+        }
+    }
 
-	int j;
-	#pragma omp parallel for reduction(+:sum) firstprivate(tmp_sum) shared(array)
-		for(j=0; j<size; j++)
-		{
-			tmp_sum += array[j];
-			sum += array[j];
-		}
+    if(sum == verif_sum)
+        printf("OK! sum = verif_sum! = %d\n", sum);
+    else
+        printf("Error! sum != verif_sum! (sum = %d ; verif_sum = %d)\n", sum, verif_sum);
+    free(array);
 
-	if(sum == verif_sum)
-	{
-		printf("OK! sum = verif_sum!\n");
-	}
-	else
-	{
-		printf("Error! sum != verif_sum! (sum = %d ; verif_sum = %d)\n", sum, verif_sum); 
-	}
-		
-
-	free(array);
-
-
-
-	return 0;
+    return 0;
 }
