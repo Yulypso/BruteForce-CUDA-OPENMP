@@ -56,7 +56,9 @@ $ OMP_NUM_THREADS=8 ./BIN
 <br/>
 
 ### I - Modèle d'exécution
+> gcc print_rank_1.c -o print_rank_1.pgr -fopenmp && OMP_NUM_THREADS=8 ./print_rank_1.pgr
 
+<br/>
 
 **Q1:** Ce programme affiche l’identifiant unique (rank) du thread courant parmis tous les threads demandés.   
 Que font les fonctions omp_get_num_threads() et omp_get_thread_num() ?
@@ -93,6 +95,9 @@ int my_rank, nb_threads;
 <br/>
 
 ### II - Partage de travail
+> gcc parallel_for_1_manual.c -o parallel_for_1_manual.pgr -fopenmp && OMP_NUM_THREADS=6 ./pa- rallel_for_1_manual.pgr
+
+<br/>
 
 **Q4**: Le programme parcourt un tableau d’entier et réalise la somme de chaque entier. Exécuter-le. Quel est le problème ?  
 > Sum est différent de verif sum car on a essayé de paralleliser la somme non correctement.  
@@ -200,7 +205,14 @@ int tmp_sum = 0, sum = 0, j;
 <br/>
 
 ### III - Paralléliser un code casseur de mot de passes
+> gcc breaker_for.c -o breaker_for.pgr -fopenmp -lm -lcrypt && ./breaker_for.pgr
 
+<br/>
+
+**Q9**: Le programme fait une recherche gloutonne pour trouver un mot de passe à partir du mot de passe crypté.  
+Pour le moment, le code test toutes les possibilités avec une boucle for.  
+Paralléliser cette boucle pour que la recherche soit plus rapide.  
+Ouvrir la page de man de la fonction crypt pour vérifier si celle-ci peut être utilisé en parallèle.  
 
 
 
