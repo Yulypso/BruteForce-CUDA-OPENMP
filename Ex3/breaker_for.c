@@ -27,32 +27,33 @@ int search_all_1( char* crypted, int length, int first_char, int last_char ){
 	int j;
 	for(j=0; j<length; j++) tab[j] = first_char;
 
-
 	struct crypt_data data;
 
+	int i = 0;
+    int ret = -1;
+	printf("max_iter = %lu \n", (unsigned long) max_iter);
+    #pragma omp parallel for schedule(static, 1) firstprivate(crypted, first_char, last_char, data) private(j) shared(max_iter, length, tab, ret) default(none)
+    for (i = 0; i < max_iter; i++) {
+        if (!strcmp(crypted, crypt_r(tab, "salt", &data))) {
+            printf("password found: %s\n", tab);
+            printf("hello");
+            ret = i;
+        }
+        #pragma omp atomic
+        tab[0]++;
+        for (j = 0; j < length - 1; j++) {
+            #pragma omp critical
+            {
+                if (last_char == tab[j]) {
+                    tab[j] = first_char;
+                    tab[j + 1]++;
+                }
+            }
 
-	int i;
-	int ret = -1;
-	printf("max_iter = %lu \n", (unsigned long) max_iter);	
-
-	for(i=0; i<max_iter; i++)
-	{
-		if( !strcmp( crypted, crypt_r( tab, "salt", &data ) ) ) {
-			printf( "password found: %s\n", tab );
-			return i;
-		}	
-		tab[0]++;
-		for(j=0; j<length-1; j++)
-		{
-			if(last_char == tab[j])
-			{
-				tab[j] = first_char;
-				tab[j+1]++;
-			}
-		}		
-	}	
-	return i;
-
+        }
+    }
+    printf("hello");
+	return -1;
 }
 
 
