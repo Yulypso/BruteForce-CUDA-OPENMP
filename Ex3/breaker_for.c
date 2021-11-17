@@ -29,12 +29,13 @@ int search_all_1( char* crypted, int length, int first_char, int last_char ){
 	struct crypt_data data;
 
 	int ret = 0;
+    int i = 0, j = 0;
 	printf("max_iter = %lu \n", (unsigned long) max_iter);
 
-    #pragma omp parallel firstprivate(crypted, first_char, last_char, data) shared(max_iter, length, tab, ret) default(none)
+    #pragma omp parallel firstprivate(data, i, j) shared(max_iter, length, tab, ret, cryptlen, crypted, first_char, last_char) default(none)
     {
         #pragma omp for schedule(static, 1)
-        for (int i = 0; i < max_iter; i++) {
+        for (i = 0; i < max_iter; i++) {
             if (ret != 0) {
                 #pragma omp cancel for
                 printf("%d: done !", omp_get_thread_num());
@@ -42,7 +43,7 @@ int search_all_1( char* crypted, int length, int first_char, int last_char ){
 
             #pragma omp critical
             {
-                if (!strcmp(crypted, crypt_r(tab, "salt", &data))) {
+                if (!strncmp(crypted, crypt_r(tab, "salt", &data), cryptlen)) {
                     printf("%d: password found: %s\n", omp_get_thread_num(), tab);
                     ret = i;
                 }
@@ -51,8 +52,10 @@ int search_all_1( char* crypted, int length, int first_char, int last_char ){
             #pragma omp atomic
             tab[0]++;
 
-            for (int j = 0; j < length - 1; j++) {
+            //#pragma omp parallel firstprivate(first_char, last_char, j) shared(length, tab) default(none)
+            for (j = 0; j < length - 1; j++) {
                 if (last_char == tab[j]) {
+                    #pragma omp atomic write
                     tab[j] = first_char;
                     #pragma omp atomic
                     tab[j + 1]++;
@@ -73,9 +76,9 @@ int main( int argc, char** argv ) {
 	int cmp;
 
 	if( argc == 1 ) {
-		password = "GHIJ";
-		first_char = 65;
-		last_char = 90;
+		password = "A$4c";
+		first_char = 32;
+		last_char = 126;
 		/* ---ASCII values---
 		 * special characters: 	32 to 47
 		 * numbers: 		48 to 57
