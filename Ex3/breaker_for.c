@@ -24,36 +24,44 @@ int search_all_1( char* crypted, int length, int first_char, int last_char ){
 	int max_iter = powl(loop_size, length);
 	char tab[length];
 	tab[length]='\0';
-	int j;
-	for(j=0; j<length; j++) tab[j] = first_char;
+	for(int j=0; j<length; j++) tab[j] = first_char;
 
 	struct crypt_data data;
 
-	int i = 0;
-    int ret = -1;
+	int ret = 0;
 	printf("max_iter = %lu \n", (unsigned long) max_iter);
-    #pragma omp parallel for schedule(static, 1) firstprivate(crypted, first_char, last_char, data) private(j) shared(max_iter, length, tab, ret) default(none)
-    for (i = 0; i < max_iter; i++) {
-        if (!strcmp(crypted, crypt_r(tab, "salt", &data))) {
-            printf("password found: %s\n", tab);
-            printf("hello");
-            ret = i;
-        }
-        #pragma omp atomic
-        tab[0]++;
-        for (j = 0; j < length - 1; j++) {
+
+    #pragma omp parallel firstprivate(crypted, first_char, last_char, data) shared(max_iter, length, tab, ret) default(none)
+    {
+        #pragma omp for schedule(static, 1)
+        for (int i = 0; i < max_iter; i++) {
+            if (ret != 0) {
+                #pragma omp cancel for
+                printf("%d: done !", omp_get_thread_num());
+            }
+
             #pragma omp critical
             {
-                if (last_char == tab[j]) {
-                    tab[j] = first_char;
-                    tab[j + 1]++;
+                if (!strcmp(crypted, crypt_r(tab, "salt", &data))) {
+                    printf("%d: password found: %s\n", omp_get_thread_num(), tab);
+                    ret = i;
                 }
             }
 
+            #pragma omp atomic
+            tab[0]++;
+
+            for (int j = 0; j < length - 1; j++) {
+                if (last_char == tab[j]) {
+                    tab[j] = first_char;
+                    #pragma omp atomic
+                    tab[j + 1]++;
+                }
+            }
         }
+        #pragma omp cancel parallel
     }
-    printf("hello");
-	return -1;
+	return ret;
 }
 
 
@@ -65,9 +73,9 @@ int main( int argc, char** argv ) {
 	int cmp;
 
 	if( argc == 1 ) {
-		password = "A$4c";
-		first_char = 32;
-		last_char = 126;
+		password = "GHIJ";
+		first_char = 65;
+		last_char = 90;
 		/* ---ASCII values---
 		 * special characters: 	32 to 47
 		 * numbers: 		48 to 57
