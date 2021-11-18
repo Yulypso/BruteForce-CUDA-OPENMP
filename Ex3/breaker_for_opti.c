@@ -17,31 +17,31 @@
 
 
 int search_all_1( char* crypted, int length, int first_char, int last_char ){
+    struct crypt_data data;
     int loop_size = last_char - first_char;
     int cryptlen = strlen(crypted);
     int max_iter = powl(loop_size, length);
     char tab[length];
+    int i = 0, j = 0, ret = 0;
+
     tab[length-1]='\0';
-    for(int j=0; j<length; j++) tab[j] = first_char;
 
-    struct crypt_data data;
+    for(int j=0; j<length; ++j)
+        tab[j] = first_char;
 
-    int ret = 0;
-    int i = 0, j = 0;
-    char *cryptr;
     printf("max_iter = %lu \n", (unsigned long) max_iter);
 
-    #pragma omp parallel firstprivate(i, j, loop_size) private(cryptr, tab, data) shared(max_iter, length, cryptlen, crypted, first_char, last_char, ret) default(none)
+    #pragma omp parallel firstprivate(i, j, loop_size) private(tab, data) shared(max_iter, length, cryptlen, crypted, first_char, last_char, ret) default(none)
     {
-        for(j=0; j<length; j++)
+        for(j = 0; j<length; ++j)
             tab[j] = first_char + (loop_size / omp_get_num_threads()) * omp_get_thread_num();
 
         #pragma omp for private(i, j)
-        for (i = 0; i < max_iter; i++)
+        for (i = 0; i < max_iter; ++i)
         {
             if(!strncmp(crypted, crypt_r(tab, "salt", &data), cryptlen))
             {
-                printf("%d: password found: %s\n", omp_get_thread_num(), tab);
+                printf(">>> Thread n°%d: password found: %s\n", omp_get_thread_num(), tab);
                 ret = i;
                 #pragma omp cancel for
             }
@@ -69,7 +69,7 @@ int main( int argc, char** argv ) {
     int cmp;
 
     if( argc == 1 ) {
-        password = "A$4c";
+        password = "0$Ac";
         first_char = 32;
         last_char = 126;
         /* ---ASCII values---
