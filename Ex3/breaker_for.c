@@ -22,37 +22,49 @@ int search_all_1( char* crypted, int length, int first_char, int last_char ){
 	int loop_size = last_char - first_char;
 	int cryptlen = strlen(crypted);
 	int max_iter = powl(loop_size, length);
-	char tab[length];
-	tab[length]='\0';
+    char tab[length];
+    tab[length-1]='\0';
+    char tabTmp[length];
+    tabTmp[length-1]='\0';
 	for(int j=0; j<length; j++) tab[j] = first_char;
 
 	struct crypt_data data;
 
 	int ret = 0;
     int i = 0, j = 0;
+    char *cryptr;
 	printf("max_iter = %lu \n", (unsigned long) max_iter);
 
-    #pragma omp parallel firstprivate(data, i, j) shared(max_iter, length, tab, ret, cryptlen, crypted, first_char, last_char) default(none)
+    #pragma omp parallel firstprivate(data, i, j, tabTmp) private(cryptr) shared(max_iter, length, tab, cryptlen, crypted, first_char, last_char, ret) default(none)
     {
-        #pragma omp for schedule(static, 1)
+        #pragma omp for
         for (i = 0; i < max_iter; i++) {
-            if (ret != 0) {
-                #pragma omp cancel for
-                printf("%d: done !", omp_get_thread_num());
-            }
 
-            #pragma omp critical
+            #pragma omp atomic write
+            cryptr = crypt_r(tab, "salt", &data);
+
+            if (!strncmp(crypted, cryptr, cryptlen))
             {
-                if (!strncmp(crypted, crypt_r(tab, "salt", &data), cryptlen)) {
-                    printf("%d: password found: %s\n", omp_get_thread_num(), tab);
-                    ret = i;
+                strcpy(tabTmp, tab);
+                for (int k = first_char; k < last_char; ++k) {
+                    tabTmp[k-first_char] = k;
+                    if(!strncmp(crypted, crypt_r(tabTmp, "salt", &data), cryptlen)) {
+                        printf("%d: password found: %s\n", omp_get_thread_num(), tabTmp);
+                    }
                 }
+                ret = i;
             }
 
-            #pragma omp atomic
+            if(ret != 0)
+            {
+                #pragma omp cancel for
+            }
+
+            #pragma omp atomic update
             tab[0]++;
 
-            //#pragma omp parallel firstprivate(first_char, last_char, j) shared(length, tab) default(none)
+            #pragma omp cancellation point for
+
             for (j = 0; j < length - 1; j++) {
                 if (last_char == tab[j]) {
                     #pragma omp atomic write
@@ -76,9 +88,9 @@ int main( int argc, char** argv ) {
 	int cmp;
 
 	if( argc == 1 ) {
-		password = "A$4c";
-		first_char = 32;
-		last_char = 126;
+		password = "GHIJ";
+		first_char = 65;
+		last_char = 90;
 		/* ---ASCII values---
 		 * special characters: 	32 to 47
 		 * numbers: 		48 to 57
