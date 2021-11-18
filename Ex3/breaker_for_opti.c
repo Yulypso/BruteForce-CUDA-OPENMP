@@ -31,30 +31,27 @@ int search_all_1( char* crypted, int length, int first_char, int last_char ){
     char *cryptr;
     printf("max_iter = %lu \n", (unsigned long) max_iter);
 
-    #pragma omp parallel firstprivate(data, i, j, loop_size) private(cryptr, tab) shared(max_iter, length, cryptlen, crypted, first_char, last_char, ret) default(none)
+    #pragma omp parallel firstprivate(i, j, loop_size) private(cryptr, tab, data) shared(max_iter, length, cryptlen, crypted, first_char, last_char, ret) default(none)
     {
         for(j=0; j<length; j++)
             tab[j] = first_char + (loop_size / omp_get_num_threads()) * omp_get_thread_num();
 
-        #pragma omp for
+        #pragma omp for private(i, j)
         for (i = 0; i < max_iter; i++)
         {
-            cryptr = crypt_r(tab, "salt", &data);
-
             if(!strncmp(crypted, crypt_r(tab, "salt", &data), cryptlen))
             {
                 printf("%d: password found: %s\n", omp_get_thread_num(), tab);
                 ret = i;
                 #pragma omp cancel for
             }
-
-            tab[0]++;
             #pragma omp cancellation point for
+            ++tab[0];
 
-            for (j = 0; j < length - 1; j++) {
+            for (j = 0; j < length - 1; ++j) {
                 if (last_char == tab[j]) {
                     tab[j] = first_char;
-                    tab[j + 1]++;
+                    ++tab[j + 1];
                 }
             }
         }
