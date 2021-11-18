@@ -19,16 +19,11 @@ int search_all_1(char *crypted, int length, int first_char, int last_char)
 #ifndef __APPLE__
     struct crypt_data data;
 #endif
-    int loop_size = last_char - first_char;
+    long double loop_size = last_char - first_char;
     int cryptlen = strlen(crypted);
-    int max_iter = powl(loop_size, length);
+    long double max_iter = powl(loop_size, (long double)length);
     char tab[length];
     int i = 0, j = 0, ret = 0;
-
-    tab[length - 1] = '\0';
-
-    for (int j = 0; j < length; ++j)
-        tab[j] = first_char;
 
     printf("max_iter = %lu \n", (unsigned long)max_iter);
 
@@ -45,17 +40,23 @@ int search_all_1(char *crypted, int length, int first_char, int last_char)
         for (i = 0; i < max_iter; ++i)
         {
 #ifdef __APPLE__
-            if (!strncmp(crypted, crypt(tab, "salt"), cryptlen))
+            if (!strcmp(crypted, tab))
 #else
             if (!strncmp(crypted, crypt_r(tab, "salt", &data), cryptlen))
 #endif
             {
-
                 printf(">>> Thread n°%d: password found: %s\n", omp_get_thread_num(), tab);
                 ret = i;
 #pragma omp cancel for
             }
+#ifdef __APPLE__
+            if (ret != 0)
+            {
+#pragma omp cancel for
+            }
+#else
 #pragma omp cancellation point for
+#endif
             ++tab[0];
 
             for (j = 0; j < length - 1; ++j)
@@ -67,7 +68,9 @@ int search_all_1(char *crypted, int length, int first_char, int last_char)
                 }
             }
         }
+#ifndef __APPLE__
 #pragma omp cancel parallel
+#endif
     }
     return ret;
 }
@@ -119,7 +122,11 @@ int main(int argc, char **argv)
     printf(" -crypted to break:\t%s\n", crypted);
 
     gettimeofday(&t1, NULL);
+#ifdef __APPLE__
+    cmp = search_all_1(password, strlen(password), first_char, last_char);
+#else
     cmp = search_all_1(crypted, strlen(password), first_char, last_char);
+#endif
     gettimeofday(&t2, NULL);
 
     double period = (double)((int)(t2.tv_sec - t1.tv_sec)) + ((double)(t2.tv_usec - t1.tv_usec)) / 1000000;
@@ -127,6 +134,9 @@ int main(int argc, char **argv)
     printf("time: %dmin %.3fs \n", (int)((t2.tv_sec - t1.tv_sec)) / 60, (double)((int)(t2.tv_sec - t1.tv_sec) % 60) + ((double)(t2.tv_usec - t1.tv_usec)) / 1000000);
     printf("#tries: %d\n", cmp);
     printf("=> efficiency: %.f tries/s\n", (double)cmp / period);
+
+    free(crypted);
+    crypted = NULL;
 
     return EXIT_SUCCESS;
 }
