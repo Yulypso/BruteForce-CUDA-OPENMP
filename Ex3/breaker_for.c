@@ -47,7 +47,7 @@ int search_all_1( char* crypted, int length, int first_char, int last_char ){
             {
                 strcpy(tabTmp, tab);
                 for (int k = first_char; k < last_char; ++k) {
-                    tabTmp[k-first_char] = k;
+                    tabTmp[0] = k;
                     if(!strncmp(crypted, crypt_r(tabTmp, "salt", &data), cryptlen)) {
                         printf("%d: password found: %s\n", omp_get_thread_num(), tabTmp);
                     }
@@ -88,9 +88,9 @@ int main( int argc, char** argv ) {
 	int cmp;
 
 	if( argc == 1 ) {
-		password = "GHIJ";
-		first_char = 65;
-		last_char = 90;
+		password = "A$4c";
+		first_char = 32;
+		last_char = 126;
 		/* ---ASCII values---
 		 * special characters: 	32 to 47
 		 * numbers: 		48 to 57
