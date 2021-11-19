@@ -135,7 +135,7 @@ int main(int argc, char **argv)
     printf("#tries: %d\n", cmp);
     printf("=> efficiency: %.f tries/s\n", (double)cmp / period);
 
-    free(crypted);
+    free((void *)crypted);
     crypted = NULL;
 
     return EXIT_SUCCESS;

@@ -9,10 +9,11 @@ IS_CANCELLATION = true
 all: compile run clean
 
 compile: 
-	clang $(CC_FLAGS) -o $(BIN) $(LIB_FLAGS) $(FILE) -lomp
+	@clang $(CC_FLAGS) -o $(BIN) $(LIB_FLAGS) $(FILE) -lomp
 
 clean:
-	rm -rf $(BIN)
+	@rm -rf $(BIN)
 
 run:
-	OMP_NUM_THREADS=$(NB_THREADS) OMP_CANCELLATION=$(IS_CANCELLATION) ${ENV} ./$(BIN)
+	@echo "-- [Running $(FILE) with $(NB_THREADS) threads] --"
+	@OMP_NUM_THREADS=$(NB_THREADS) OMP_CANCELLATION=$(IS_CANCELLATION) ./$(BIN)
