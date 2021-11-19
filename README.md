@@ -318,3 +318,145 @@ free(h_c);
 ```
 
 </br>
+
+**Q2:** Que calcule ce programme ?
+> h_a:  1, 0.5, 0.3, 0.2, 0.16
+> h_b: -1, 0.0, 0.3, 0.5, 0.6
+> h_c:  0, 0.5, 0.6, 0.7, 0.82
+> Le programme calcule f(x) = (1/(1+x)) + (x-1)/(x+1)
+
+
+**Q3:** Combien y a-t-il de blocs au total ? Combien de threads par blocs ? Combien de threads au total ?
+> Nombre total de blocs: (1000 + 64 - 1)/64 = (16.6) soit 17 blocs; l'idée est de s'ajouter 64 thread au numérateur pour s'assurer d'avoir suffisamment de bloc de 64 threads pour le calcul. 1000/64 = 15.6 (15 blocs => insuffisant) et 1064/64 = 16.6 (16 blocs, soit 1024 threads)
+> Il y a 64 threads par blocs
+> N vaut 1000, soit 1024 - 1000 = 24 threads non utilisé du bloc n°15. 
+
+**Q4:** Émuler sur CPU le comportement du GPU sans utiliser le SDK CUDA. Pour ce faire, réécrire le programme en C/C++ avec les contraintes suivantes :
+    1. utilisation d’une fonction kernel
+    2. utillisation des grilles de blocs et de threads
+
+
+<br/>
+
+### II - Debugging
+
+Nous considérons à présent le fichier err1.cu. Ce programme est censé calculer la somme de deux vecteurs. À la fin de l’exécution, une erreur relative est calculée entre le vecteur issu du GPGPU et celui calculé sur CPU.  
+
+**Q5:** Compiler et exécuter le programme. Le résultat est-il correct ?
+> Non il y a des erreurs
+```bash
+./BIN
+CUDA error at err1.cu:35 (no error) 
+CUDA error at err1.cu:36 (no error) 
+CUDA error at err1.cu:37 (no error) 
+CUDA error at err1.cu:39 (no error) 
+CUDA error at err1.cu:40 (no error) 
+CUDA error at err1.cu:46 (no error) 
+CUDA error at err1.cu:48 (no error) 
+CUDA error at err1.cu:49 (no error) 
+CUDA error at err1.cu:50 (no error) 
+ERROR (Relative error : 5.681e-01)
+```
+
+**Q6:** Encadrer chaque appel à CUDA par la macro checkCudaErrors.
+```c
+#define checkCudaErrors(val) \
+        fprintf(stderr, "CUDA error at %s:%d (%s) \n", __FILE__, __LINE__, cudaGetErrorString(val)) 
+```
+
+**Q7:** Calculer le nombre total de threads. Comparer le à N. Qu’en déduire ?
+> Nombre total de threads = nombre de blocs * nombre de threads par bloc
+> Nombre total de threads = dimGrid * dimBlock
+> Nombre total de threads = 10 * 64 = 640 threads.
+
+> N = 1000
+> On peut en déduire qu'il n'y a pas assez de threads.
+
+**Q8:** Corriger le code CUDA selon les deux possibilités suivantes:
+    1. Corriger le nombre de blocs pour traiter tous les indices des tableaux.
+    2. Sans changer les tailles de la grille et des blocs, modifier le kernel (prendre en compte le nombre total de threads).
+
+```c
+// 1.
+int N = 640;
+SUCCESS (Relative error : 0.000e+00)
+```
+
+```c
+int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+// 2. le thread 0 va travailler avec i=0 et i=640
+for(i; i < N; i += (blockDim.x * gridDim.x))
+    c[i] = a[i] + b[i];
+```
+
+<br/>
+
+### III - Traduction d’un code C en code CUDA
+
+**Q9:** Le squelette de la traduction en CUDA du programme contenu dans le fichier Ex3_1.c vous est fourni dans le répertoire CODE (fichier Ex3_1.cu. A vous de remplir ce squelette (parties notées "A COMPLETER" dans le code) pour réaliser l’initialisation du tableau a sur le GPU.
+
+**Q10:** Le schéma d’accès aux données du tableau a est-il efficace ?pourquoi ?
+
+**Q11:** Nous allons vérifier cette hypothèse. Insérer des appels à gettimeofday pour mesurer le temps du kernel CUDA (et uniquement du kernel). Relevez le temps mesuré.
+
+**Q12:** Nous allons maintenant changer le schéma d’accés aux données du tableau a en modifiant les valeurs dans le tableau d’indirection b. Remplacez la valeur actuelle de STEP par 1. Que cela change-t-il pour les accés au tableau a ? Relevez le temps mesuré. Est-il meilleur  ? Pourquoi ?
+
+**Q13:** Jusqu’à présent, nous n’utilisions qu’un seul bloc de plusieurs threads. Nous allons changé cela. Modifiez la valeur de nBlocks pour la mettre à 16. Modifiez votre kernel pour avoir un calcul d’indice correct. Relevez le temps mesuré. Est-il meilleur ? Pourquoi ?
+
+<br/>
+
+### IV - Réduction somme en CUDA
+Une réduction somme consiste à additionner toutes les valeurs d’une tableau. Une écriture séquentielle d’une réduction pourrait être la suivante :  
+```c
+float sum = 0 ;
+for (int i = 0 ; i < ntot ; i++)
+    sum += tab[i] ;
+```
+
+    1. Une première réduction dans chaque bloc. On obtient ainsi à la fin un tableau dimensionné au nombre de blocs et dont les valeurs sont les sommes partielles de chaque bloc.
+    2. Une seconde réduction sur les sommes partielles. On obtient ainsi la somme totale des éléments du tableau.
+
+**Q14:** Implémenter le kernel reduce_kernel(float *in, float *out) (voir fi-chier reduce.cu) permettant de faire les sommes partielles par bloc.  
+in est le tableau de valeurs à réduire dimensionné au nombre total de threads dans la grille, et out le tableau de valeurs réduites par bloc, dimensionné au nombre de bloc.  
+Pour réaliser cette réduction, vous utiliserez une méthode arborescente, ainsi que la fonction __syncthreads() qui permet de synchroniser à l’intérieur d’un kernel tous les threads d’un même bloc.
+Nous nous placerons sous les hypothèses suivantes:
+
+    1. Le nombre de blocs et de threads par bloc sont des puissances de 2. 
+    2. La taille du tableau est égale au nombre de threads.
+
+**Q15:** Utiliser le même kernel pour terminer la réduction (étape 2).
+
+**Q16:** Généraliser la réduction à une taille quelconque de tableau.
+
+<br/>
+
+### V - Réduction somme en CUDA
+
+Le calcul de l’indice global d’un thread est généralement très important dans un kernel CUDA. Nous allons augmenté le nombre de dimensions des grilles et des blocs dans le programme précédent pour s’habituer à manipuler plus de dimensions dans notre calcul d’indice global
+
+**Q17:** Passez à des tailles de grille et de bloc à deux dimensions. Donnez le calcul de l’indice global du thread avec ces 2x2 dimensions.
+
+
+---
+
+<br/>
+
+## Devoir maison - Multiplication de matrice[FR]
+
+Ecrire un code cuda pour calculer la multiplication de matrice carré de taille N.
+
+Pseudo code:
+```c
+for(i = 0; i < N; ++i)
+    for(j = 0; j < N; ++j)
+        for(k = 0; k < N; ++k) # restera sur le GPU
+            c[i][j] += a[i][k] * b[k][j] # restera sur le GPU
+```
+
+Bien faire l'allocation mémoire et compiler Cuda
+
+grand tableau N * N 
+pour acceder: i * N + j
+
+faire des blocs de taille max 32 threads = 1 warp (utiliser la puissance maximale du warp)

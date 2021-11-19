@@ -1,6 +1,5 @@
 BIN = BIN
-FILE = err1.cu
-# FILE = err2.cu
+FILE = matrices.cu
 
 all: compile run clean
 
