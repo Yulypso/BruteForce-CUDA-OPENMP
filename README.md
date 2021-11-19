@@ -29,6 +29,8 @@ $ sudo apt install gcc
 
 > [OpenMP](https://www.openmp.org) 
 
+> [CUDA](https://developer.nvidia.com/cuda-zone)
+
 ---
 
 <br/>

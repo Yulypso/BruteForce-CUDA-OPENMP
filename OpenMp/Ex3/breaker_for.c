@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 
     if (argc == 1)
     {
-        password = "A$4c";
+        password = "GHIJ";
         first_char = 32;
         last_char = 126;
         /* ---ASCII values---
