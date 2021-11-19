@@ -49,7 +49,7 @@ int search_all_1(char *crypted, int length, int first_char, int last_char)
                 ret = i;
 #pragma omp cancel for
             }
-#if defined (__APPLE__) || defined (__linux__)
+#if defined(__APPLE__) || defined(__linux__)
             if (ret != 0)
             {
 #pragma omp cancel for
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 
     if (argc == 1)
     {
-        password = "ABCD";
+        password = "A$4c";
         first_char = 32;
         last_char = 126;
         /* ---ASCII values---
