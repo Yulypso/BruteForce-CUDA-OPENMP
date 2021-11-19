@@ -1,5 +1,5 @@
 BIN = BIN
-FILE = firstCuda.cu
+FILE = Ex1.cu
 
 all: compile run clean
 

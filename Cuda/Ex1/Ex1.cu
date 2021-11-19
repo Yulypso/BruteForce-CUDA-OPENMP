@@ -8,7 +8,7 @@ __global__ void kernel(double *a, double *b, double *c, int N)
     
     if (i < N)
     {
-	c[i] = a[i] + b[i];
+	    c[i] = a[i] + b[i];
     }
 }
 

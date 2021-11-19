@@ -1,4 +1,4 @@
-# Richarallele
+# Richarallele (OpenMP and CUDA)
 
 ## Author
 
@@ -26,7 +26,6 @@ $ sudo apt install gcc
 ```
 > [GCC](https://gcc.gnu.org/onlinedocs/gcc-11.2.0/gcc/)
 
-
 > [OpenMP](https://www.openmp.org) 
 
 > [CUDA](https://developer.nvidia.com/cuda-zone)
@@ -53,7 +52,7 @@ $ OMP_NUM_THREADS=8 ./BIN
 
 <br/>
 
-## Questions [FR]
+## Questions - OpenMp[FR]
 
 <br/>
 
@@ -222,3 +221,100 @@ Ouvrir la page de man de la fonction crypt pour vérifier si celle-ci peut être
 
 ### IV - Devoir maison 
 
+Arrêt des threads lorsque le mot de passe a été trouvé. 
+
+<br/>
+
+---
+
+<br/>
+
+## Questions - CUDA[FR]
+
+<br/>
+
+### I - Modèle d'exécution
+> nvcc Ex1.cu -o Ex1.pgr
+
+<br/>
+
+**Q1:** Quelle partie du programme doit s’exécuter sur l’hôte ? Quelle partie sur
+le device ?
+> [Etape 1] hote: Initialisation et allocation mémoire sur le CPU (hote)
+```c
+int N = 1000;
+int sz_in_bytes = N*sizeof(double);
+
+double *h_a, *h_b, *h_c;
+double *d_a, *d_b, *d_c;
+
+h_a = (double*)malloc(sz_in_bytes);
+h_b = (double*)malloc(sz_in_bytes);
+h_c = (double*)malloc(sz_in_bytes);
+
+// Initiate values on h_a and h_b
+for(int i = 0 ; i < N ; i++)
+{
+    h_a[i] = 1./(1.+i);
+    h_b[i] = (i-1.)/(i+1.);
+}
+```
+
+</br>
+
+> [Etape 2] device: Allocation mémoire sur le GPU (device)
+```c
+// 3-arrays allocation on device 
+cudaMalloc((void**)&d_a, sz_in_bytes);
+cudaMalloc((void**)&d_b, sz_in_bytes);
+cudaMalloc((void**)&d_c, sz_in_bytes);
+```  
+
+</br>
+
+> [Etape 3] host vers device: Transfert des données CPU vers GPU
+```c
+ // copy on device values pointed on host by h_a and h_b
+// (the new values are pointed by d_a et d_b on device)
+cudaMemcpy(d_a, h_a, sz_in_bytes, cudaMemcpyHostToDevice);
+cudaMemcpy(d_b, h_b, sz_in_bytes, cudaMemcpyHostToDevice);
+```
+
+</br>
+
+> [Etape 4] device: Execution d'un noyau de calcul sur le GPU
+```c
+dim3  dimBlock(64, 1, 1);
+dim3  dimGrid((N + dimBlock.x - 1)/dimBlock.x, 1, 1);
+kernel<<<dimGrid , dimBlock>>>(d_a, d_b, d_c, N);
+``` 
+
+</br>
+
+> [Etape 5] device vers host: Rapatriement des données du GPU vers le CPU
+```c
+// Result is pointed by d_c on device
+// Copy this result on host (result pointed by h_c on host)
+cudaMemcpy(h_c, d_c, sz_in_bytes, cudaMemcpyDeviceToHost);
+```
+
+</br>
+
+> [Etape 6] device: Liberation mémoire sur le GPU
+```c
+// freeing on device 
+cudaFree(d_a);
+cudaFree(d_b);
+cudaFree(d_c);
+```
+
+</br>
+
+> [Etape 7] host: Liberation mémoire sur le CPU
+```c
+free(h_a);
+free(h_b);
+free(h_c);
+```
+
+</br>
