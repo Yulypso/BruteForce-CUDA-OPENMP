@@ -49,7 +49,7 @@ int search_all_1(char *crypted, int length, int first_char, int last_char)
                 ret = i;
 #pragma omp cancel for
             }
-#if defined(__APPLE__) || defined(__linux__)
+#if defined(__APPLE__)
             if (ret != 0)
             {
 #pragma omp cancel for
