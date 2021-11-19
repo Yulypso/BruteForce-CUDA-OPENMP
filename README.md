@@ -450,8 +450,8 @@ Pseudo code:
 ```c
 for(i = 0; i < N; ++i)
     for(j = 0; j < N; ++j)
-        for(k = 0; k < N; ++k) # restera sur le GPU
-            c[i][j] += a[i][k] * b[k][j] # restera sur le GPU
+        for(k = 0; k < N; ++k) // restera sur le GPU
+            c[i][j] += a[i][k] * b[k][j] // restera sur le GPU
 ```
 
 Bien faire l'allocation mémoire et compiler Cuda
