@@ -24,10 +24,18 @@ __global__ void kernel(double *a, double *b, double *c, int N)
     int line = i / N; 
     int col = i % N; 
 
-    // permet de donner a un meme thread du calcul supplémentaire (décalé de n threads) si le nombre de thread est inférieur à la taille de la matrice: N * N
-    //for(i; i < N * N; i += (blockDim.x * gridDim.x)) 
-        for(int k = 0; k < N; ++k)
-            c[i] += a[line * N + k] * b[col + k * N];
+    /* Methode 1
+    * permet de donner a un meme thread du calcul supplémentaire (décalé de n threads) si le nombre de thread est inférieur à la taille de la matrice: N * N
+    * for(i; i < N * N; i += (blockDim.x * gridDim.x)) 
+    *   for(int k = 0; k < N; ++k)
+    *       c[i] += a[line * N + k] * b[col + k * N];
+    */
+    
+    /* Methode 2
+    * En definissant le nombre de bloc de thread necessaire correctement
+    */
+    for(int k = 0; k < N; ++k)
+        c[i] += a[line * N + k] * b[col + k * N];
 }
 
 void displayMatrix(double *matrix, int N)
