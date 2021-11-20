@@ -8,34 +8,32 @@
 
 __global__ void kernel(double *a, double *b, double *c, int N)
 {
+
+    /* 
+    * En definissant le nombre de bloc de thread necessaire correctement
+    * Chaque thread va effectuer seulement un calcul de somme ligne [i] matrice A * colonne [j] matrice B
+    * et sauvegarder le résultat dans la case [i][j] en question de la matrice C
+    */
+
+    int i = (blockIdx.x * blockDim.x + threadIdx.x); // i (= lines) prend des valeurs entre 0 à N-1
+    int j = (blockIdx.y * blockDim.y + threadIdx.y); // j (= columns) prends des valeurs entre 0 à N-1
+
     /* 
     *  - Ecriture dans la matrice c avec l'indice i allant de 0 à N*N
     *
     *  - parcours de la matrice a par ligne :
-    *       - premiere ligne est donnée par : line=0 * N
-    *       - parcours des éléments : (line=0) * N + k
+    *       - premiere ligne est donnée par : i=0 * N
+    *       - parcours des éléments : (i=0) * N + k
     *
     *   - parcours de la matrice b par colonne:
-    *       - premiere colonne est donnée par : col=0
-    *       - parcours des éléments : (col=0) + k * N
+    *       - premiere colonne est donnée par : j=0
+    *       - parcours des éléments : (j=0) + k * N
     */
-
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    int line = i / N; 
-    int col = i % N; 
-
-    /* Methode 1
-    * permet de donner a un meme thread du calcul supplémentaire (décalé de n threads) si le nombre de thread est inférieur à la taille de la matrice: N * N
-    * for(i; i < N * N; i += (blockDim.x * gridDim.x)) 
-    *   for(int k = 0; k < N; ++k)
-    *       c[i] += a[line * N + k] * b[col + k * N];
-    */
-    
-    /* Methode 2
-    * En definissant le nombre de bloc de thread necessaire correctement
-    */
-    for(int k = 0; k < N; ++k)
-        c[i] += a[line * N + k] * b[col + k * N];
+    if (i < N && j < N) // On s'assure de bien rester dans la matrice.
+    {
+        for(int k = 0; k < N; ++k)
+            c[i * N + j] += a[i * N + k] * b[j + k * N];
+    }
 }
 
 void displayMatrix(double *matrix, int N)
@@ -43,7 +41,6 @@ void displayMatrix(double *matrix, int N)
     /*
     * Affichage des matrices
     */
-
     for(int i = 0 ; i < N * N ; ++i)
     {
         if(i % N == 0)
@@ -55,12 +52,12 @@ void displayMatrix(double *matrix, int N)
 
 int main(int argc, char **argv)
 {
-    srand((unsigned) time(0));
+    //srand((unsigned) time(0));
 
     /* CPU (host)
-    * Initialisation des variables et allocation mémoire des trois matrices
+    * Initialisation de la taille de la matrice et allocation mémoire des trois matrices
     */
-    int N = 10;
+    int N = 3;
     int sz_in_bytes = N * N * sizeof(double);
 
     double *h_a, *h_b, *h_c;
@@ -69,7 +66,9 @@ int main(int argc, char **argv)
     h_b = (double*)malloc(sz_in_bytes);
     h_c = (double*)malloc(sz_in_bytes);
 
-    // Initiate values on h_a and h_b
+    /* CPU (host)
+    * Initialisation des matrices A et B par des valeurs aléatoires
+    */
     for(int i = 0 ; i < N * N ; i++)
     {
 	    h_a[i] = rand() % 100;
@@ -97,14 +96,23 @@ int main(int argc, char **argv)
     checkCudaErrors(cudaMemcpy(d_b, h_b, sz_in_bytes, cudaMemcpyHostToDevice));
 
     /* GPU (device)
-    * Execution sur le GPU (calculs paralleles)
+    * Execution sur le GPU (calculs paralleles) en considérant N = 10
+    *
+    * dimBlock = 8 * 4 = 32 CUDA core (thread) dans un block correspondant à la taille d'un warp. Cela permet d'éviter d'avoir des threads sans calculs à effectuer au sein d'un warp.
+    * Un SM démarre 4 warps de 32 threads, nous avons donc 128 threads par SM.
+    * 
+    * dimGrid =  N * N = 100 CUDA blocks (thread block). 
+    * Chacun des 100 blocks de la grid seront executé par des SM (streaming multiprocessor). 
+    * Cela nous permet de faire du mapping et d'executer les calculs par blocks.
+    *
+    * Appel du Kernel depuis le CPU déclenchant la fonction autant de fois que le nombre total de CUDA Core demandé.
     */
-    dim3  dimBlock(32, 1, 1); // 32 car c'est la taille d'un warp, et un SM démarre 4 warps de 32 threads, soit 128 threads
-    dim3  dimGrid((N * N + dimBlock.x - 1)/dimBlock.x, 1, 1); // calcul du nombre de bloc nécessaire B tel que B >= N*N 
+    dim3  dimBlock(8, 4, 1); 
+    dim3  dimGrid((N + dimBlock.x - 1) / dimBlock.x, (N  + dimBlock.y - 1) / dimBlock.y, 1); 
     kernel<<<dimGrid , dimBlock>>>(d_a, d_b, d_c, N);
 
     /* GPU (device) -> CPU (host)
-    * Copie des variables résultantes du GPU vers le CPU
+    * Copie des variables résultantes du GPU vers le CPU*
     */
     checkCudaErrors(cudaMemcpy(h_c, d_c, sz_in_bytes, cudaMemcpyDeviceToHost));
 
