@@ -170,7 +170,7 @@ int main(int argc, char **argv)
 * - Systeme d'exploitation: Windows
 * Chiffrement possible avec crypt.h: Oui
 * Mot de passe testé: A$4c
-* Temps: 
+* Temps: 0 min 36.913 sec
 *
 * - Systeme d'exploitation: Ubuntu 
 * Chiffrement possible avec crypt.h: Oui
