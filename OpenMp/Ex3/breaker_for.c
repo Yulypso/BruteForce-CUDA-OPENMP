@@ -1,4 +1,4 @@
-//gcc breaker_for.c -o breaker.pgr -lcrypt -lm && ./breaker.pgr
+// Pour compiler et executer: make
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -33,6 +33,14 @@ int search_all_1(char *crypted, int length, int first_char, int last_char)
 #pragma omp parallel firstprivate(i, j, loop_size) private(tab, data) shared(max_iter, length, cryptlen, crypted, first_char, last_char, ret) default(none)
 #endif
     {
+        /*
+        * Initialisation des tableaux pour chaque thread à des emplacements différents 
+        * Par exemple: 
+        * [thread 0]: AAAA
+        * [thread 1]: GGGG
+        * [thread 2]: MMMM
+        *  ...
+        */
         for (j = 0; j < length; ++j)
             tab[j] = first_char + (loop_size / omp_get_num_threads()) * omp_get_thread_num();
 
@@ -40,8 +48,17 @@ int search_all_1(char *crypted, int length, int first_char, int last_char)
         for (i = 0; i < (int)max_iter; ++i)
         {
 #ifdef __APPLE__
-            if (!strcmp(crypted, tab))
+            /*
+            * La fonction crypt_r n'existe pas sur MacOS et crypt() n'est pas thread safe.
+            */
+            if (!strcmp(crypted, tab)) 
 #else
+            /*
+            * Si le mot de passe chiffré correspond au mot de passe que nous venons de chiffrer par brute force
+            * On demande au thread courant de quitter le for avec:  #pragma omp cancel for
+            * Les autres threads vérifient si la boucle a été annulée ou pas lorsqu'ils verront: #pragma omp cancellation point for
+            * Si oui, ils quittent également la boucle for, sinon ils continuent le brute-force.
+            */ 
             if (!strncmp(crypted, crypt_r(tab, "salt", &data), cryptlen))
 #endif
             {
@@ -50,6 +67,9 @@ int search_all_1(char *crypted, int length, int first_char, int last_char)
 #pragma omp cancel for
             }
 #if defined(__APPLE__)
+            /*
+            * #pragma omp cancellation point for ne fonctionne pas sur MacOs
+            */
             if (ret != 0)
             {
 #pragma omp cancel for
@@ -85,7 +105,7 @@ int main(int argc, char **argv)
 
     if (argc == 1)
     {
-        password = "GHIJ";
+        password = "A$4c";
         first_char = 32;
         last_char = 126;
         /* ---ASCII values---
@@ -140,3 +160,20 @@ int main(int argc, char **argv)
 
     return EXIT_SUCCESS;
 }
+
+/*
+* - Systeme d'exploitation: MacOS
+* Chiffrement possible avec crypt.h: Non
+* Mot de passe testé: A$4c
+* Temps (sans chiffrement): 0 min 0.126 sec
+*
+* - Systeme d'exploitation: Windows
+* Chiffrement possible avec crypt.h: Oui
+* Mot de passe testé: A$4c
+* Temps: 
+*
+* - Systeme d'exploitation: Ubuntu 
+* Chiffrement possible avec crypt.h: Oui
+* Mot de passe testé: A$4c
+* Temps: 0 min 44.364 sec
+*/
