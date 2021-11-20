@@ -25,7 +25,7 @@ __global__ void kernel(double *a, double *b, double *c, int N)
     int col = i % N; 
 
     // permet de donner a un meme thread du calcul supplémentaire (décalé de n threads) si le nombre de thread est inférieur à la taille de la matrice: N * N
-    for(i; i < N * N; i += (blockDim.x * gridDim.x)) 
+    //for(i; i < N * N; i += (blockDim.x * gridDim.x)) 
         for(int k = 0; k < N; ++k)
             c[i] += a[line * N + k] * b[col + k * N];
 }
@@ -91,8 +91,8 @@ int main(int argc, char **argv)
     /* GPU (device)
     * Execution sur le GPU (calculs paralleles)
     */
-    dim3  dimBlock(32, 1, 1);
-    dim3  dimGrid(10, 1, 1);
+    dim3  dimBlock(32, 1, 1); // 32 car c'est la taille d'un warp, et un SM démarre 4 warps de 32 threads, soit 128 threads
+    dim3  dimGrid((N * N + dimBlock.x - 1)/dimBlock.x, 1, 1); // calcul du nombre de bloc nécessaire B tel que B >= N*N 
     kernel<<<dimGrid , dimBlock>>>(d_a, d_b, d_c, N);
 
     /* GPU (device) -> CPU (host)
