@@ -8,7 +8,6 @@
 
 __global__ void kernel(double *a, double *b, double *c, int N)
 {
-
     /* 
     * En definissant le nombre de bloc de thread necessaire correctement
     * Chaque thread va effectuer seulement un calcul de somme ligne [i] matrice A * colonne [j] matrice B
@@ -52,12 +51,12 @@ void displayMatrix(double *matrix, int N)
 
 int main(int argc, char **argv)
 {
-    //srand((unsigned) time(0));
+    srand((unsigned) time(0));
 
     /* CPU (host)
     * Initialisation de la taille de la matrice et allocation mémoire des trois matrices
     */
-    int N = 3;
+    int N = 10;
     int sz_in_bytes = N * N * sizeof(double);
 
     double *h_a, *h_b, *h_c;
@@ -101,9 +100,12 @@ int main(int argc, char **argv)
     * dimBlock = 8 * 4 = 32 CUDA core (thread) dans un block correspondant à la taille d'un warp. Cela permet d'éviter d'avoir des threads sans calculs à effectuer au sein d'un warp.
     * Un SM démarre 4 warps de 32 threads, nous avons donc 128 threads par SM.
     * 
-    * dimGrid =  N * N = 100 CUDA blocks (thread block). 
-    * Chacun des 100 blocks de la grid seront executé par des SM (streaming multiprocessor). 
+    * Calcul de la dimension de la grid necessaire en fonction du nombre de thread par blocks.
+    * dimGrid =  2 * 3 = 6 CUDA blocks (thread block). 
+    * Chacun des 6 blocks de la grid seront executé par des SM (streaming multiprocessor). 
     * Cela nous permet de faire du mapping et d'executer les calculs par blocks.
+    *
+    * Dans mon cas, la GTX 750Ti permet d'avoir 640 CUDA Core et d'executer 5 SM en même temps.
     *
     * Appel du Kernel depuis le CPU déclenchant la fonction autant de fois que le nombre total de CUDA Core demandé.
     */
