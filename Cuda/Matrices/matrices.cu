@@ -6,7 +6,7 @@
 #define checkCudaErrors(val) \
         fprintf(stderr, "CUDA check at %s:%d (%s) \n", __FILE__, __LINE__, cudaGetErrorString(val)) 
 
-__global__ void kernel(double *a, double *b, double *c, int N)
+__global__ void kernel(double *a, double *b, double *c, unsigned long long int N)
 {
     /* 
     * En definissant le nombre de bloc de thread necessaire correctement
@@ -14,8 +14,8 @@ __global__ void kernel(double *a, double *b, double *c, int N)
     * et sauvegarder le résultat dans la case [i][j] en question de la matrice C
     */
 
-    int i = (blockIdx.x * blockDim.x + threadIdx.x); // i (= lines) prend des valeurs entre 0 à N-1
-    int j = (blockIdx.y * blockDim.y + threadIdx.y); // j (= columns) prends des valeurs entre 0 à N-1
+    unsigned long long int i = (blockIdx.x * blockDim.x + threadIdx.x); // i (= lines) prend des valeurs entre 0 à N-1
+    unsigned long long int j = (blockIdx.y * blockDim.y + threadIdx.y); // j (= columns) prends des valeurs entre 0 à N-1
 
     /* 
     *  - Ecriture dans la matrice c avec l'indice i allant de 0 à N*N
@@ -28,14 +28,14 @@ __global__ void kernel(double *a, double *b, double *c, int N)
     *       - premiere colonne est donnée par : j=0
     *       - parcours des éléments : (j=0) + k * N
     */
-    if (i < N && j < N) // On s'assure de bien rester dans la matrice.
+    //if (i < N && j < N) // On s'assure de bien rester dans la matrice.
     {
-        for(int k = 0; k < N; ++k)
+        for(unsigned long long int k = 0; k < N; ++k)
             c[i * N + j] += a[i * N + k] * b[j + k * N];
     }
 }
 
-void displayMatrix(double *matrix, int N)
+void displayMatrix(double *matrix, unsigned long long int N)
 {
     /*
     * Affichage des matrices
@@ -56,8 +56,8 @@ int main(int argc, char **argv)
     /* CPU (host)
     * Initialisation de la taille de la matrice et allocation mémoire des trois matrices
     */
-    int N = 10;
-    int sz_in_bytes = N * N * sizeof(double);
+    unsigned long long int N = 1000;
+    unsigned long long int sz_in_bytes = N * N * sizeof(double);
 
     double *h_a, *h_b, *h_c;
     double *d_a, *d_b, *d_c;
@@ -68,7 +68,7 @@ int main(int argc, char **argv)
     /* CPU (host)
     * Initialisation des matrices A et B par des valeurs aléatoires
     */
-    for(int i = 0 ; i < N * N ; i++)
+    for(unsigned long long int i = 0 ; i < N * N ; ++i)
     {
 	    h_a[i] = rand() % 100;
 	    h_b[i] = rand() % 100;
@@ -78,8 +78,11 @@ int main(int argc, char **argv)
     /* CPU (host)
     * Affichage des matrices a et b
     */
-    displayMatrix(h_a, N);
-    displayMatrix(h_b, N);
+    if(N <= 10)
+    {
+        displayMatrix(h_a, N);
+        displayMatrix(h_b, N);
+    }
 
     /* GPU (device)
     * Allocation mémoire des trois matrices
@@ -111,7 +114,20 @@ int main(int argc, char **argv)
     */
     dim3  dimBlock(8, 4, 1); 
     dim3  dimGrid((N + dimBlock.x - 1) / dimBlock.x, (N  + dimBlock.y - 1) / dimBlock.y, 1); 
+    
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start);
+
     kernel<<<dimGrid , dimBlock>>>(d_a, d_b, d_c, N);
+
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);  
+
+    printf("\nGPU Elapsed time: %3.1f ms\n", milliseconds);
 
     /* GPU (device) -> CPU (host)
     * Copie des variables résultantes du GPU vers le CPU*
@@ -121,8 +137,9 @@ int main(int argc, char **argv)
     /* CPU (host)
     * Affichage de la matrice résultante c
     */
-    displayMatrix(h_c, N);
-
+    if(N <= 10)
+        displayMatrix(h_c, N);
+    
     /* GPU (device)
     * Libération de la mémoire sur le GPU
     */
