@@ -1,4 +1,8 @@
-// Pour compiler et executer: make
+/* 
+* Thierry KHAMPHOUSONE, ESIEA MS-SIS 2021-2022
+* Programmation parallele OpenMp & Cuda
+* => Pour compiler et executer: make
+*/
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -51,14 +55,14 @@ int search_all_1(char *crypted, int length, int first_char, int last_char)
             /*
             * La fonction crypt_r n'existe pas sur MacOS et crypt() n'est pas thread safe.
             */
-            if (!strcmp(crypted, tab)) 
+            if (!strcmp(crypted, tab))
 #else
             /*
             * Si le mot de passe chiffré correspond au mot de passe que nous venons de chiffrer par brute force
             * On demande au thread courant de quitter le for avec:  #pragma omp cancel for
             * Les autres threads vérifient si la boucle a été annulée ou pas lorsqu'ils verront: #pragma omp cancellation point for
             * Si oui, ils quittent également la boucle for, sinon ils continuent le brute-force.
-            */ 
+            */
             if (!strncmp(crypted, crypt_r(tab, "salt", &data), cryptlen))
 #endif
             {

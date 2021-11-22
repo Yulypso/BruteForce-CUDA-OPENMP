@@ -1,3 +1,9 @@
+/* 
+* Thierry KHAMPHOUSONE, ESIEA MS-SIS 2021-2022
+* Programmation parallele OpenMp & Cuda
+* => Pour compiler et executer: make
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -156,3 +162,33 @@ int main(int argc, char **argv)
 
     return 0;
 }
+
+/* Analyse N trop grand (>= 10 000) 
+
+J'ai pu tester mon code avec N = 10000 implémentant un calcul de matrice de taille N * N = 100 000 000 cases.
+Cependant, CudaMalloc retourne une erreur: [Out of Memory] indiquant qu'il n'a pas réussi à allouer assez de mémoire sur le GPU
+pour effectuer les calculs. 
+
+C'est pourquoi je suggère une solution qui serait de découper la matrice résultante C en 4 sous matrices: haut-gauche, haut-droite, bas-gauche, bas-droite.
+
+Le calcul a effectuer afin de remplir:
+- la partie haut-gauche de la matrice C serait d'envoyer (allouer de la mémoire) au GPU: 
+    -> N/2 premières lignes de la matrice A
+    -> N/2 premières colonnes de la matrice B
+
+- la partie haut-droite de la matrice C serait d'envoyer au GPU:
+    -> N/2 premières lignes de la matrice A
+    -> N/2 colonnes à partir de la N/2 + 1 premières colonnes de la matrice B
+
+- la partie bas-gauche de la matrice C serait d'envoyer au GPU:
+    -> N/2 lignes à partir de la N/2 + 1 premières lignes de la matrice A
+    -> N/2 premières colonnes de la matrice B
+
+- la partie bas-droite de la matrice C serait d'envoyer au GPU:
+    -> N/2 lignes à partir de la N/2 + 1 premières lignes de la matrice A
+    -> N/2 colonnes à partir de la N/2 + 1 premières colonnes de la matrice B
+
+De ce fait, chacun des 4 batchs se retrouvent avec une mémoire allouée équivalente à (N/k * N) avec k=2 pour une matrice A par exemple.
+
+On pourrait suivre le même principe afin de réduire significativement la taille de chaque batch en augmentant k et en décalant correctement les offsets.
+*/
